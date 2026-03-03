@@ -17,6 +17,16 @@
   <body>
     <canvas id="mandelbrot" width="400" height="400"></canvas>
     <canvas id="julia" width="400" height="400"></canvas>
+    <button id="toggle-btn" style="
+  background: #222;
+  color: white;
+  border: 1px solid #444;
+  padding: 8px 16px;
+  font-family: monospace;
+  font-size: 14px;
+  cursor: pointer;
+  margin-top: 10px;
+">Mode: Click</button>
 <div id="c-label" style="color: white; font-family: monospace; font-size: 16px; padding-top: 10px;">
   c = -0.7 + 0.27i
 </div>
@@ -30,7 +40,13 @@ const jCtx = juliaCanvas.getContext("2d");
 // Dynamic view for Mandelbrot
 let viewXMin = -2.5, viewXMax = 1.5;
 let viewYMin = -2, viewYMax = 2;
+let hoverMode = false;
+const toggleBtn = document.getElementById("toggle-btn");
 
+toggleBtn.addEventListener("click", function() {
+  hoverMode = !hoverMode;
+  toggleBtn.textContent = hoverMode ? "Mode: Hover" : "Mode: Click";
+});
 // Rectangle drag state
 let isDragging = false;
 let dragStartX, dragStartY;
@@ -117,11 +133,21 @@ mandelbrotCanvas.addEventListener("mousedown", function(e) {
 });
 
 mandelbrotCanvas.addEventListener("mousemove", function(e) {
-  if (!isDragging) return;
   const rect = mandelbrotCanvas.getBoundingClientRect();
-  dragEndX = e.clientX - rect.left;
-  dragEndY = e.clientY - rect.top;
-  drawSelectionRect();
+  let px = e.clientX - rect.left;
+  let py = e.clientY - rect.top;
+
+  if (isDragging) {
+    dragEndX = px;
+    dragEndY = py;
+    drawSelectionRect();
+  }
+
+  if (!isDragging && hoverMode) {
+    let { cx, cy } = pixelToComplex(px, py);
+    document.getElementById("c-label").textContent = `c = ${cx.toFixed(3)} + ${cy.toFixed(3)}i`;
+    drawJulia(cx, cy);
+  }
 });
 
 mandelbrotCanvas.addEventListener("mouseup", function(e) {
