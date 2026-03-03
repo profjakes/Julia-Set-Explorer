@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Julia Set Explorer</title>
+    <style>
+      body {
+        background: black;
+        display: flex;
+        gap: 10px;
+        padding: 10px;
+      }
+      canvas {
+        border: 1px solid #444;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="mandelbrot" width="400" height="400"></canvas>
+    <canvas id="julia" width="400" height="400"></canvas>
+<div id="c-label" style="color: white; font-family: monospace; font-size: 16px; padding-top: 10px;">
+  c = -0.7 + 0.27i
+</div>
+    <script>
+      const mandelbrotCanvas = document.getElementById("mandelbrot");
+      const juliaCanvas = document.getElementById("julia");
+
+      console.log("Canvases ready!", mandelbrotCanvas, juliaCanvas);
+    const mCtx = mandelbrotCanvas.getContext("2d");
+const jCtx = juliaCanvas.getContext("2d");
+
+function mandelbrot(cx, cy, maxIter) {
+  let x = 0, y = 0;
+  for (let i = 0; i < maxIter; i++) {
+    let xNew = x*x - y*y + cx;
+    let yNew = 2*x*y + cy;
+    x = xNew;
+    y = yNew;
+    if (x*x + y*y > 4) return i;
+  }
+  return maxIter;
+}
+
+function drawMandelbrot() {
+  const maxIter = 100;
+  for (let px = 0; px < 400; px++) {
+    for (let py = 0; py < 400; py++) {
+      // Map pixel to complex plane
+      let cx = (px - 200) / 100;
+      let cy = (py - 200) / 100;
+
+      let iter = mandelbrot(cx, cy, maxIter);
+      let hue = iter === maxIter ? 0 : (iter / maxIter) * 360;
+let saturation = iter === maxIter ? "0%" : "100%";
+let lightness = iter === maxIter ? "0%" : "50%";
+mCtx.fillStyle = `hsl(${hue}, ${saturation}, ${lightness})`;
+      mCtx.fillRect(px, py, 1, 1);
+    }
+  }
+}
+
+drawMandelbrot();
+function julia(zx, zy, cx, cy, maxIter) {
+  for (let i = 0; i < maxIter; i++) {
+    let zxNew = zx*zx - zy*zy + cx;
+    let zyNew = 2*zx*zy + cy;
+    zx = zxNew;
+    zy = zyNew;
+    if (zx*zx + zy*zy > 4) return i;
+  }
+  return maxIter;
+}
+
+function drawJulia(cx, cy) {
+  const maxIter = 100;
+  for (let px = 0; px < 400; px++) {
+    for (let py = 0; py < 400; py++) {
+      let zx = (px - 200) / 100;
+      let zy = (py - 200) / 100;
+
+      let iter = julia(zx, zy, cx, cy, maxIter);
+      let hue = iter === maxIter ? 0 : (iter / maxIter) * 360;
+let saturation = iter === maxIter ? "0%" : "100%";
+let lightness = iter === maxIter ? "0%" : "50%";
+jCtx.fillStyle = `hsl(${hue}, ${saturation}, ${lightness})`;
+      jCtx.fillRect(px, py, 1, 1);
+    }
+  }
+}
+
+// Draw a default Julia set to start
+drawJulia(-0.7, 0.27);
+
+// When you click the Mandelbrot, draw the Julia set for that point
+mandelbrotCanvas.addEventListener("click", function(event) {
+  const rect = mandelbrotCanvas.getBoundingClientRect();
+  let px = event.clientX - rect.left;
+  let py = event.clientY - rect.top;
+
+  // Convert pixel to complex number
+  let cx = (px - 200) / 100;
+  let cy = (py - 200) / 100;
+document.getElementById("c-label").textContent = `c = ${cx.toFixed(3)} + ${cy.toFixed(3)}i`;
+  drawJulia(cx, cy);
+});</script>
+  </body>
+</html>
