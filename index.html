@@ -20,13 +20,27 @@
 <div id="c-label" style="color: white; font-family: monospace; font-size: 16px; padding-top: 10px;">
   c = -0.7 + 0.27i
 </div>
-    <script>
-      const mandelbrotCanvas = document.getElementById("mandelbrot");
-      const juliaCanvas = document.getElementById("julia");
-
-      console.log("Canvases ready!", mandelbrotCanvas, juliaCanvas);
-    const mCtx = mandelbrotCanvas.getContext("2d");
+ 
+<script>
+const mandelbrotCanvas = document.getElementById("mandelbrot");
+const juliaCanvas = document.getElementById("julia");
+const mCtx = mandelbrotCanvas.getContext("2d");
 const jCtx = juliaCanvas.getContext("2d");
+
+// Dynamic view for Mandelbrot
+let viewXMin = -2.5, viewXMax = 1.5;
+let viewYMin = -2, viewYMax = 2;
+
+// Rectangle drag state
+let isDragging = false;
+let dragStartX, dragStartY;
+let dragEndX, dragEndY;
+
+function pixelToComplex(px, py) {
+  let cx = viewXMin + (px / 400) * (viewXMax - viewXMin);
+  let cy = viewYMin + (py / 400) * (viewYMax - viewYMin);
+  return { cx, cy };
+}
 
 function mandelbrot(cx, cy, maxIter) {
   let x = 0, y = 0;
@@ -44,21 +58,17 @@ function drawMandelbrot() {
   const maxIter = 100;
   for (let px = 0; px < 400; px++) {
     for (let py = 0; py < 400; py++) {
-      // Map pixel to complex plane
-      let cx = (px - 200) / 100;
-      let cy = (py - 200) / 100;
-
+      let { cx, cy } = pixelToComplex(px, py);
       let iter = mandelbrot(cx, cy, maxIter);
       let hue = iter === maxIter ? 0 : (iter / maxIter) * 360;
-let saturation = iter === maxIter ? "0%" : "100%";
-let lightness = iter === maxIter ? "0%" : "50%";
-mCtx.fillStyle = `hsl(${hue}, ${saturation}, ${lightness})`;
+      let saturation = iter === maxIter ? "0%" : "100%";
+      let lightness = iter === maxIter ? "0%" : "50%";
+      mCtx.fillStyle = `hsl(${hue}, ${saturation}, ${lightness})`;
       mCtx.fillRect(px, py, 1, 1);
     }
   }
 }
 
-drawMandelbrot();
 function julia(zx, zy, cx, cy, maxIter) {
   for (let i = 0; i < maxIter; i++) {
     let zxNew = zx*zx - zy*zy + cx;
@@ -76,31 +86,76 @@ function drawJulia(cx, cy) {
     for (let py = 0; py < 400; py++) {
       let zx = (px - 200) / 100;
       let zy = (py - 200) / 100;
-
       let iter = julia(zx, zy, cx, cy, maxIter);
       let hue = iter === maxIter ? 0 : (iter / maxIter) * 360;
-let saturation = iter === maxIter ? "0%" : "100%";
-let lightness = iter === maxIter ? "0%" : "50%";
-jCtx.fillStyle = `hsl(${hue}, ${saturation}, ${lightness})`;
+      let saturation = iter === maxIter ? "0%" : "100%";
+      let lightness = iter === maxIter ? "0%" : "50%";
+      jCtx.fillStyle = `hsl(${hue}, ${saturation}, ${lightness})`;
       jCtx.fillRect(px, py, 1, 1);
     }
   }
 }
 
-// Draw a default Julia set to start
-drawJulia(-0.7, 0.27);
+function drawSelectionRect() {
+  // Redraw mandelbrot first, then overlay the rectangle
+  drawMandelbrot();
+  let x = Math.min(dragStartX, dragEndX);
+  let y = Math.min(dragStartY, dragEndY);
+  let w = Math.abs(dragEndX - dragStartX);
+  let h = Math.abs(dragEndY - dragStartY);
+  mCtx.strokeStyle = "white";
+  mCtx.lineWidth = 1;
+  mCtx.strokeRect(x, y, w, h);
+}
 
-// When you click the Mandelbrot, draw the Julia set for that point
-mandelbrotCanvas.addEventListener("click", function(event) {
+// Mouse events for drag-to-zoom
+mandelbrotCanvas.addEventListener("mousedown", function(e) {
   const rect = mandelbrotCanvas.getBoundingClientRect();
-  let px = event.clientX - rect.left;
-  let py = event.clientY - rect.top;
+  dragStartX = e.clientX - rect.left;
+  dragStartY = e.clientY - rect.top;
+  isDragging = true;
+});
 
-  // Convert pixel to complex number
-  let cx = (px - 200) / 100;
-  let cy = (py - 200) / 100;
-document.getElementById("c-label").textContent = `c = ${cx.toFixed(3)} + ${cy.toFixed(3)}i`;
-  drawJulia(cx, cy);
-});</script>
+mandelbrotCanvas.addEventListener("mousemove", function(e) {
+  if (!isDragging) return;
+  const rect = mandelbrotCanvas.getBoundingClientRect();
+  dragEndX = e.clientX - rect.left;
+  dragEndY = e.clientY - rect.top;
+  drawSelectionRect();
+});
+
+mandelbrotCanvas.addEventListener("mouseup", function(e) {
+  if (!isDragging) return;
+  isDragging = false;
+
+  const rect = mandelbrotCanvas.getBoundingClientRect();
+  dragEndX = e.clientX - rect.left;
+  dragEndY = e.clientY - rect.top;
+
+  // If it was basically a click (tiny drag), just update Julia
+  let dx = Math.abs(dragEndX - dragStartX);
+  let dy = Math.abs(dragEndY - dragStartY);
+  if (dx < 5 && dy < 5) {
+    let { cx, cy } = pixelToComplex(dragStartX, dragStartY);
+    document.getElementById("c-label").textContent = `c = ${cx.toFixed(3)} + ${cy.toFixed(3)}i`;
+    drawJulia(cx, cy);
+    return;
+  }
+
+  // Zoom in: update view to the dragged rectangle
+  let p1 = pixelToComplex(Math.min(dragStartX, dragEndX), Math.min(dragStartY, dragEndY));
+  let p2 = pixelToComplex(Math.max(dragStartX, dragEndX), Math.max(dragStartY, dragEndY));
+  viewXMin = p1.cx;
+  viewXMax = p2.cx;
+  viewYMin = p1.cy;
+  viewYMax = p2.cy;
+
+  drawMandelbrot();
+});
+
+// Initial draw
+drawMandelbrot();
+drawJulia(-0.7, 0.27);
+</script>
   </body>
 </html>
